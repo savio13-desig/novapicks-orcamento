@@ -486,7 +486,8 @@ function sheetHTML(){
   var table='<table class="sh-table"><thead><tr><th>Serviço</th><th class="n">Qtd</th><th class="n">Unit.</th><th class="n">Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
   var tot='<div class="sh-tot">';
   if(T.mensal)tot+='<div><span>Mensalidade</span><span>'+brl(T.mensal)+' / mês</span></div>';
-  if(T.unico)tot+='<div><span>Total único</span><span>'+brl(T.unico)+'</span></div>';
+  var descUnico=T.disc>0&&q.cond.discOn!=='mensal1';
+  if(T.unico)tot+='<div><span>Total único'+(descUnico?' com desconto':'')+'</span><span>'+(descUnico?'<s style="color:var(--ink-soft);font-size:12px">'+brl(T.unico)+'</s> '+brl(T.unico-T.disc):brl(T.unico))+'</span></div>';
   if(T.disc)tot+='<div class="disc"><span>Desconto '+T.pct+'% na '+(q.cond.discOn==='mensal1'?'1ª mensalidade':'parte única')+'</span><span>− '+brl(T.disc)+'</span></div>';
   if(T.mensal||T.unico)tot+='<div class="big"><span>A pagar na contratação</span><span>'+brl(T.primeiro)+'</span></div>';
   tot+='</div>';
@@ -510,8 +511,9 @@ function waMessage(){
   T.items.forEach(function(i){L.push('• '+i.name+(i.qty>1?' ×'+i.qty:'')+' — '+brl(i.price*i.qty)+(i.unit==='mensal'?' /mês':''))});
   L.push('');
   if(T.mensal)L.push('Mensalidade: '+brl(T.mensal)+' por mês');
-  if(T.unico)L.push('Total único: '+brl(T.unico));
-  if(T.disc)L.push('Desconto '+T.pct+'%: − '+brl(T.disc));
+  var descUnico=T.disc>0&&q.cond.discOn!=='mensal1';
+  if(T.unico)L.push(descUnico?'Total único: ~'+brl(T.unico)+'~ '+brl(T.unico-T.disc)+' (com '+T.pct+'% de desconto)':'Total único: '+brl(T.unico));
+  if(T.disc&&!descUnico)L.push('Desconto de '+T.pct+'% na 1ª mensalidade: − '+brl(T.disc));
   L.push('*A pagar na contratação: '+brl(T.primeiro)+'*');
   if(q.cond.pagamento){L.push('');L.push('Pagamento: '+q.cond.pagamento)}
   if(q.cond.prazo)L.push('Prazo: '+q.cond.prazo);
