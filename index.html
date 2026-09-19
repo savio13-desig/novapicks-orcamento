@@ -275,7 +275,8 @@ footer.note{border-top:1px solid var(--line);color:var(--muted);font-size:12.5px
           <label class="f"><span>Prazo de início</span><input type="text" id="q-prazo" data-b="cond.prazo"></label>
           <label class="f"><span>Desconto (%)</span><input type="number" id="q-disc" data-b="cond.disc" min="0" max="100" step="1"></label>
           <label class="f"><span>Aplicar desconto em</span>
-            <select id="q-discOn" data-b="cond.discOn"><option value="unico">Total único</option><option value="mensal1">1ª mensalidade</option></select></label>
+            <select id="q-discOn" data-b="cond.discOn"><option value="tudo">Valor da contratação (único + 1ª mensalidade)</option><option value="unico">Só o total único</option><option value="mensal1">Só a 1ª mensalidade</option></select></label>
+          <p id="discHint" class="full" style="margin:-4px 0 0;color:var(--warn);font-size:13px" hidden></p>
           <label class="f full"><span>Condições de pagamento</span><input type="text" id="q-pag" data-b="cond.pagamento"></label>
           <label class="f full"><span>Condições e garantias (uma por linha)</span><textarea id="q-cond" data-b="cond.condicoes"></textarea></label>
           <label class="f full"><span>Observações (opcional)</span><textarea id="q-obs" data-b="cond.obs" style="min-height:70px"></textarea></label>
@@ -396,7 +397,7 @@ var DEFAULT_DEF={validade:'15',prazo:'Início em até 3 dias úteis após a conf
 
 function freshQuote(S,demo){
   var q={num:S.counter,demo:!!demo,items:[],client:{nome:'',tel:'',email:'',seg:'',cidade:''},
-    cond:{validade:S.def.validade,prazo:S.def.prazo,pagamento:S.def.pagamento,condicoes:S.def.condicoes,obs:'',disc:0,discOn:'unico'}};
+    cond:{validade:S.def.validade,prazo:S.def.prazo,pagamento:S.def.pagamento,condicoes:S.def.condicoes,obs:'',disc:0,discOn:'tudo'}};
   if(demo){
     q.client.nome='Pizzaria Bella Massa (exemplo)';q.client.seg='Pizzaria';q.client.cidade='São Paulo, SP';
     q.items=[{id:uid(),catId:'t2',qty:1},{id:uid(),catId:'t1',qty:1},{id:uid(),catId:'w1',qty:1}];
@@ -432,7 +433,7 @@ function totals(){
   var its=resolved(),m=0,u=0;
   its.forEach(function(i){var v=i.price*i.qty;if(i.unit==='mensal')m+=v;else u+=v});
   var p=Math.max(0,Math.min(100,Number(S.quote.cond.disc)||0)),d=0;
-  if(p>0){d=(S.quote.cond.discOn==='mensal1'?m:u)*p/100}
+  var on=S.quote.cond.discOn;if(p>0){d=(on==='mensal1'?m:on==='unico'?u:m+u)*p/100}
   return {items:its,mensal:m,unico:u,pct:p,disc:d,primeiro:u+m-d};
 }
 function todayISO(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
@@ -486,9 +487,9 @@ function sheetHTML(){
   var table='<table class="sh-table"><thead><tr><th>Serviço</th><th class="n">Qtd</th><th class="n">Unit.</th><th class="n">Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
   var tot='<div class="sh-tot">';
   if(T.mensal)tot+='<div><span>Mensalidade</span><span>'+brl(T.mensal)+' / mês</span></div>';
-  var descUnico=T.disc>0&&q.cond.discOn!=='mensal1';
+  var descUnico=T.disc>0&&q.cond.discOn==='unico';
   if(T.unico)tot+='<div><span>Total único'+(descUnico?' com desconto':'')+'</span><span>'+(descUnico?'<s style="color:var(--ink-soft);font-size:12px">'+brl(T.unico)+'</s> '+brl(T.unico-T.disc):brl(T.unico))+'</span></div>';
-  if(T.disc)tot+='<div class="disc"><span>Desconto '+T.pct+'% na '+(q.cond.discOn==='mensal1'?'1ª mensalidade':'parte única')+'</span><span>− '+brl(T.disc)+'</span></div>';
+  if(T.disc)tot+='<div class="disc"><span>Desconto '+T.pct+'% '+({mensal1:'na 1ª mensalidade',unico:'na parte única'}[q.cond.discOn]||'na contratação')+'</span><span>− '+brl(T.disc)+'</span></div>';
   if(T.mensal||T.unico)tot+='<div class="big"><span>A pagar na contratação</span><span>'+brl(T.primeiro)+'</span></div>';
   tot+='</div>';
   var cl=condLines();
@@ -511,9 +512,9 @@ function waMessage(){
   T.items.forEach(function(i){L.push('• '+i.name+(i.qty>1?' ×'+i.qty:'')+' — '+brl(i.price*i.qty)+(i.unit==='mensal'?' /mês':''))});
   L.push('');
   if(T.mensal)L.push('Mensalidade: '+brl(T.mensal)+' por mês');
-  var descUnico=T.disc>0&&q.cond.discOn!=='mensal1';
+  var descUnico=T.disc>0&&q.cond.discOn==='unico';
   if(T.unico)L.push(descUnico?'Total único: ~'+brl(T.unico)+'~ '+brl(T.unico-T.disc)+' (com '+T.pct+'% de desconto)':'Total único: '+brl(T.unico));
-  if(T.disc&&!descUnico)L.push('Desconto de '+T.pct+'% na 1ª mensalidade: − '+brl(T.disc));
+  if(T.disc&&!descUnico)L.push('Desconto de '+T.pct+'% '+(q.cond.discOn==='mensal1'?'na 1ª mensalidade':'na contratação')+': − '+brl(T.disc));
   L.push('*A pagar na contratação: '+brl(T.primeiro)+'*');
   if(q.cond.pagamento){L.push('');L.push('Pagamento: '+q.cond.pagamento)}
   if(q.cond.prazo)L.push('Prazo: '+q.cond.prazo);
@@ -525,6 +526,10 @@ function waMessage(){
 function renderSheet(){
   $('#sheet').innerHTML=sheetHTML();
   $('#waText').textContent=waMessage();
+  var T2=totals(),h=$('#discHint'),on=S.quote.cond.discOn;
+  var vazio=T2.pct>0&&!T2.disc;
+  h.hidden=!vazio;
+  if(vazio)h.textContent='Este desconto não teve efeito: '+(on==='unico'?'o orçamento não tem itens de valor único.':'o orçamento não tem itens mensais.')+' Escolha “Valor da contratação” para descontar tudo.';
   $('#demoBanner').hidden=!S.quote.demo;
 }
 
