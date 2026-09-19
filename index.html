@@ -242,9 +242,6 @@ footer.note{border-top:1px solid var(--line);color:var(--muted);font-size:12.5px
         <span>Exemplo carregado. Nome do cliente e seleção são fictícios, só para mostrar como fica.</span>
         <button id="btnFresh" type="button">Começar do zero</button>
       </div>
-      <div class="banner" id="draftBanner">
-        <span>Valores do catálogo são rascunho de mercado. Ajuste na aba “Catálogo e valores” antes de enviar a um cliente.</span>
-      </div>
 
       <div class="sec">
         <h2>Serviços</h2>
@@ -307,7 +304,6 @@ footer.note{border-top:1px solid var(--line);color:var(--muted);font-size:12.5px
       <h1>Catálogo e valores</h1>
       <p>Serviços e preços que aparecem no orçamento. Tudo é salvo neste aparelho. Para dar desconto em valor fixo, crie um item “Desconto” com valor negativo, por exemplo -100,00.</p>
     </div>
-    <div class="banner"><span>Os valores iniciais são rascunho baseados em faixas de mercado de freelancer e agência pequena no Brasil. Ajuste ao que você de fato cobra.</span></div>
     <div class="tbl-wrap"><table class="cat-tbl"><thead><tr><th style="width:15%">Grupo</th><th style="width:22%">Serviço</th><th>Descrição que o cliente lê</th><th style="width:130px">Valor (R$)</th><th style="width:110px">Cobrança</th><th style="width:60px"></th></tr></thead><tbody id="catBody"></tbody></table></div>
     <p style="margin-top:16px"><button class="btn tl" id="btnNewSvc" type="button">+ Novo serviço</button></p>
   </div>
@@ -393,7 +389,7 @@ var DEFAULT_CAT=[
  {id:'a1',group:'Automação com n8n',name:'Agente de IA no WhatsApp ou Instagram',desc:'Atendimento e triagem automáticos, com o fluxo desenhado para o seu negócio.',price:2500,unit:'único'},
  {id:'a2',group:'Automação com n8n',name:'Automação de estoque e pedidos',desc:'Integra planilha, loja e avisos para o estoque se atualizar sozinho.',price:1500,unit:'único'},
  {id:'a3',group:'Automação com n8n',name:'Manutenção das automações',desc:'Monitoramento, correções e ajustes nos fluxos ativos.',price:350,unit:'mensal'},
- {id:'v1',group:'Vídeo',name:'Vídeo de anúncio (até 30 s)',desc:'Roteiro, edição e formato vertical pronto para anúncio.',price:600,unit:'único'}
+ {id:'v1',group:'Vídeo',name:'Vídeo de anúncio (até 30 s)',desc:'Roteiro, edição e formato vertical pronto para anúncio.',price:300,unit:'único'}
 ];
 var DEFAULT_SET={empresa:'novapicks',resp:'Savio',wa:'',email:'',cidade:'São Paulo, SP',razao:'',cnpj:'',pix:'',banco:'',rodape:'novapicks · marketing digital e automação · São Paulo, SP',logo:''};
 var DEFAULT_DEF={validade:'15',prazo:'Início em até 3 dias úteis após a confirmação',pagamento:'Serviços únicos: 50% na aprovação e 50% na entrega. Mensalidades: todo mês, via Pix.',condicoes:'Verba de anúncios (Meta, Google, TikTok) não está inclusa e é paga direto à plataforma.\nAcesso às contas e materiais do cliente é necessário para começar.\nRelatório de resultados enviado todo mês.'};
@@ -409,13 +405,16 @@ function freshQuote(S,demo){
   return q;
 }
 function initialState(){
-  var S={cat:clone(DEFAULT_CAT),set:clone(DEFAULT_SET),def:clone(DEFAULT_DEF),history:[],counter:1,draft:true};
+  var S={cat:clone(DEFAULT_CAT),set:clone(DEFAULT_SET),def:clone(DEFAULT_DEF),history:[],counter:1,ver:2};
   S.quote=freshQuote(S,true);
   return S;
 }
 var S;
 try{var raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):null}catch(e){S=null}
 if(!S||!S.quote){S=initialState()}
+if(!S.ver||S.ver<2){ // valores oficiais: vídeo de anúncio passa a R$ 300 (preço de teste)
+  S.cat.forEach(function(c){if(c.id==='v1')c.price=300});S.ver=2;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 /* ---------- helpers de orçamento ---------- */
@@ -525,7 +524,6 @@ function renderSheet(){
   $('#sheet').innerHTML=sheetHTML();
   $('#waText').textContent=waMessage();
   $('#demoBanner').hidden=!S.quote.demo;
-  $('#draftBanner').hidden=!S.draft;
 }
 
 /* ---------- binds ---------- */
@@ -552,7 +550,7 @@ document.addEventListener('input',function(e){
   else if(el.dataset.c){ // catálogo
     var id=el.closest('tr').dataset.id;var c=S.cat.filter(function(x){return x.id===id})[0];if(!c)return;
     c[el.dataset.c]=el.dataset.c==='price'?(el.value===''?0:Number(el.value)):el.value;
-    S.draft=true;persist();
+    persist();
   }
 });
 document.addEventListener('change',function(e){var el=e.target;if(el.dataset.f==='unit'||el.dataset.b){renderSheet()}if(el.dataset.c==='unit'||el.dataset.c==='group'){}});
@@ -597,7 +595,7 @@ function renderHistory(){
 }
 function saveQuote(){
   var T=totals();if(!T.items.length){toast('Adicione ao menos um serviço');return false}
-  S.quote.demo=false;S.draft=S.draft;
+  S.quote.demo=false;
   var ex=S.history.filter(function(h){return h.num===S.quote.num})[0];
   if(!ex||!S.quote.emissao)S.quote.emissao=ex&&ex.emissao?ex.emissao:todayISO(); // fixa a data na primeira vez que salva
   var label=numLabel(),snap=clone(S.quote);
