@@ -436,8 +436,10 @@ function totals(){
   if(p>0){d=(S.quote.cond.discOn==='mensal1'?m:u)*p/100}
   return {items:its,mensal:m,unico:u,pct:p,disc:d,primeiro:u+m-d};
 }
-function fmtDate(d){return d.toLocaleDateString('pt-BR')}
-function numLabel(){return 'NP-'+new Date().getFullYear()+'-'+String(S.quote.num).padStart(3,'0')}
+function todayISO(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function emissao(q){return (q.demo||!q.emissao)?todayISO():q.emissao} // rascunho e exemplo seguem o dia; salvo fica fixo
+function fmtDate(iso){var p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function numLabel(){return 'NP-'+emissao(S.quote).slice(0,4)+'-'+String(S.quote.num).padStart(3,'0')}
 function condLines(){return (S.quote.cond.condicoes||'').split('\n').map(function(s){return s.trim()}).filter(Boolean)}
 
 /* ---------- logo ---------- */
@@ -477,7 +479,7 @@ function renderCustoms(){
 function sheetHTML(){
   var T=totals(),q=S.quote,s=S.set;
   var head='<div class="sh-head">'+logoHTML()+'<div><h4>'+esc(s.empresa||'Empresa')+'</h4><p>'+[s.resp,s.wa,s.email,s.cidade].filter(Boolean).map(esc).join(' · ')+'</p></div></div>';
-  var title='<div class="sh-title"><h5>Proposta comercial</h5><span>Nº '+numLabel()+'<br>Emissão '+fmtDate(new Date())+'</span></div>';
+  var title='<div class="sh-title"><h5>Proposta comercial</h5><span>Nº '+numLabel()+'<br>Emissão '+fmtDate(emissao(q))+'</span></div>';
   var cli=(q.client.nome||q.client.seg||q.client.cidade||q.client.tel)?'<div class="sh-client"><b>Para:</b> '+esc(q.client.nome||'—')+[q.client.seg,q.client.cidade].filter(Boolean).map(function(x){return ' · '+esc(x)}).join('')+(q.client.tel?'<br>'+esc(q.client.tel):'')+'</div>':'';
   var rows=T.items.length?T.items.map(function(i){
     return '<tr><td>'+esc(i.name)+(i.desc?'<small>'+esc(i.desc)+'</small>':'')+'<small>'+(i.unit==='mensal'?'Mensal':'Valor único')+'</small></td><td class="n">'+i.qty+'</td><td class="n">'+brl(i.price)+'</td><td class="n">'+brl(i.price*i.qty)+'</td></tr>';
@@ -503,7 +505,7 @@ function sheetHTML(){
 function waMessage(){
   var T=totals(),q=S.quote,s=S.set,L=[];
   L.push('*Proposta comercial · '+(s.empresa||'')+'*');
-  L.push('Nº '+numLabel()+' · '+fmtDate(new Date()));
+  L.push('Nº '+numLabel()+' · '+fmtDate(emissao(q)));
   if(q.client.nome)L.push('Para: '+q.client.nome);
   L.push('');
   T.items.forEach(function(i){L.push('• '+i.name+(i.qty>1?' ×'+i.qty:'')+' — '+brl(i.price*i.qty)+(i.unit==='mensal'?' /mês':''))});
@@ -596,9 +598,10 @@ function renderHistory(){
 function saveQuote(){
   var T=totals();if(!T.items.length){toast('Adicione ao menos um serviço');return false}
   S.quote.demo=false;S.draft=S.draft;
+  var ex=S.history.filter(function(h){return h.num===S.quote.num})[0];
+  if(!ex||!S.quote.emissao)S.quote.emissao=ex&&ex.emissao?ex.emissao:todayISO(); // fixa a data na primeira vez que salva
   var label=numLabel(),snap=clone(S.quote);
-  var ex=S.history.filter(function(h){return h.label===label})[0];
-  var rec={id:ex?ex.id:uid(),label:label,date:fmtDate(new Date()),count:T.items.length,primeiro:T.primeiro,quote:snap};
+  var rec={id:ex?ex.id:uid(),num:S.quote.num,emissao:S.quote.emissao,label:label,date:fmtDate(S.quote.emissao),count:T.items.length,primeiro:T.primeiro,quote:snap};
   if(ex){S.history[S.history.indexOf(ex)]=rec}else{S.history.push(rec)}
   persist();renderSheet();renderHistory();return true;
 }
@@ -620,7 +623,7 @@ $('#btnCopy').addEventListener('click',function(){
 $('#btnPrint').addEventListener('click',function(){if(!saveQuote())return;window.print()});
 $('#btnSave').addEventListener('click',function(){if(saveQuote())toast('Orçamento salvo no histórico')});
 function newQuote(){
-  if(S.history.some(function(h){return h.label===numLabel()}))S.counter=S.quote.num+1;
+  if(S.history.some(function(h){return h.num===S.quote.num}))S.counter=S.quote.num+1;
   S.quote=freshQuote(S,false);persist();fillBinds();renderAll();
 }
 $('#btnNew').addEventListener('click',function(){newQuote();toast('Novo orçamento')});
